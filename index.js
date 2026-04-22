@@ -1,45 +1,61 @@
 import jsonfile from "jsonfile";
 import moment from "moment";
 import simpleGit from "simple-git";
+import random from "random";
 
 const path = "./data.json";
+
+// Liste de messages pour simuler un vrai projet
+const commitMessages = [
+  "Initial commit for module", "Fix: handle null pointer exception",
+  "Update: styling components", "Refactor: clean up unused variables",
+  "Docs: update README.md", "Feat: add login validation",
+  "Fix: responsive layout issues", "Test: add unit tests for auth",
+  "Chore: update dependencies", "Feat: implement dark mode support",
+  "Fix: API integration error", "Performance: optimize image loading"
+];
 
 async function startBot() {
   let startDate = moment("2025-01-10T09:00:00");
   const endDate = moment("2025-12-23T17:00:00");
 
-  // Boucle à travers chaque jour
   while (startDate.isBefore(endDate)) {
-    const dayOfWeek = startDate.isoWeekday(); // 1=Lun, 3=Mer, 6=Sam, 7=Dim
+    const dayOfWeek = startDate.isoWeekday();
 
-    // Vérifier si le jour est autorisé (Pas mercredi=3, samedi=6, dimanche=7)
+    // Jours travaillés : Lundi(1), Mardi(2), Jeudi(4), Vendredi(5)
     if (dayOfWeek !== 3 && dayOfWeek !== 6 && dayOfWeek !== 7) {
-      console.log(`--- Génération pour le : ${startDate.format("LL")} ---`);
       
-      // Créer 30 commits pour cette journée
-      for (let i = 0; i < 30; i++) {
-        // On espace les commits sur la plage 9h-17h (toutes les ~16 minutes)
+      // Nombre de commits aléatoire entre 5 et 30 pour ce jour
+      const commitsToday = random.int(5, 30);
+      console.log(`--- ${startDate.format("LL")} : ${commitsToday} commits prévus ---`);
+      
+      for (let i = 0; i < commitsToday; i++) {
+        // Distribution aléatoire dans la journée de 9h à 17h
         const commitDate = startDate.clone()
-          .add(i * 16, "minutes") 
+          .hour(random.int(9, 16))
+          .minute(random.int(0, 59))
+          .second(random.int(0, 59))
           .format();
 
-        const data = { date: commitDate };
+        const data = { 
+            date: commitDate,
+            task: `Task_${i}`,
+            status: "completed" 
+        };
 
-        // Écriture synchrone pour garantir l'ordre des commits
+        const randomMsg = commitMessages[random.int(0, commitMessages.length - 1)];
+
         jsonfile.writeFileSync(path, data);
         
-        // Exécution de la commande Git
-        await simpleGit().add([path]).commit(commitDate, { "--date": commitDate });
-        console.log(`Commit ${i + 1}/30 effectué : ${commitDate}`);
+        // On commit avec un message réaliste et la fausse date
+        await simpleGit().add([path]).commit(randomMsg, { "--date": commitDate });
       }
     }
     
-    // Passer au jour suivant à 9h00
-    startDate.add(1, "day").hour(9).minute(0).second(0);
+    startDate.add(1, "day").hour(9).minute(0);
   }
 
-  // Push final une fois que tout est fini
-  console.log("Terminé ! Envoi vers GitHub...");
+  console.log("Fini ! Envoi vers le dépôt distant...");
   await simpleGit().push();
 }
 
