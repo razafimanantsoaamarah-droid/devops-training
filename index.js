@@ -1,40 +1,46 @@
 import jsonfile from "jsonfile";
 import moment from "moment";
 import simpleGit from "simple-git";
-import random from "random";
 
 const path = "./data.json";
 
-const markCommit = (x, y) => {
-  const date = moment()
-    .subtract(1, "y")
-    .add(1, "d")
-    .add(x, "w")
-    .add(y, "d")
-    .format();
+async function startBot() {
+  let startDate = moment("2025-01-10T09:00:00");
+  const endDate = moment("2025-12-23T17:00:00");
 
-  const data = {
-    date: date,
-  };
+  // Boucle à travers chaque jour
+  while (startDate.isBefore(endDate)) {
+    const dayOfWeek = startDate.isoWeekday(); // 1=Lun, 3=Mer, 6=Sam, 7=Dim
 
-  jsonfile.writeFile(path, data, () => {
-    simpleGit().add([path]).commit(date, { "--date": date }).push();
-  });
-};
+    // Vérifier si le jour est autorisé (Pas mercredi=3, samedi=6, dimanche=7)
+    if (dayOfWeek !== 3 && dayOfWeek !== 6 && dayOfWeek !== 7) {
+      console.log(`--- Génération pour le : ${startDate.format("LL")} ---`);
+      
+      // Créer 30 commits pour cette journée
+      for (let i = 0; i < 30; i++) {
+        // On espace les commits sur la plage 9h-17h (toutes les ~16 minutes)
+        const commitDate = startDate.clone()
+          .add(i * 16, "minutes") 
+          .format();
 
-const makeCommits = (n) => {
-  if(n===0) return simpleGit().push();
-  const x = random.int(0, 54);
-  const y = random.int(0, 6);
-  const date = moment().subtract(1, "y").add(1, "d").add(x, "w").add(y, "d").format();
+        const data = { date: commitDate };
 
-  const data = {
-    date: date,
-  };
-  console.log(date);
-  jsonfile.writeFile(path, data, () => {
-    simpleGit().add([path]).commit(date, { "--date": date },makeCommits.bind(this,--n));
-  });
-};
+        // Écriture synchrone pour garantir l'ordre des commits
+        jsonfile.writeFileSync(path, data);
+        
+        // Exécution de la commande Git
+        await simpleGit().add([path]).commit(commitDate, { "--date": commitDate });
+        console.log(`Commit ${i + 1}/30 effectué : ${commitDate}`);
+      }
+    }
+    
+    // Passer au jour suivant à 9h00
+    startDate.add(1, "day").hour(9).minute(0).second(0);
+  }
 
-makeCommits(100);
+  // Push final une fois que tout est fini
+  console.log("Terminé ! Envoi vers GitHub...");
+  await simpleGit().push();
+}
+
+startBot().catch(console.error);
